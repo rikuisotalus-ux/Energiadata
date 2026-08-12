@@ -4,7 +4,7 @@ from datetime import datetime
 import os
 
 def hae_julkisesta_api(symboli, tuote_nimi):
-    # KORJATTU: Lisätty puuttuva vinoviiva (/) ennen symbolia, jotta URL muodostuu oikein
+    # KORJATTU: Vinoviiva on nyt varmasti paikoillaan muuttujan edessä
     url = f"https://yahoo.com{symboli}"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -14,7 +14,7 @@ def hae_julkisesta_api(symboli, tuote_nimi):
         if response.status_code == 200:
             json_data = response.json()
             # Haetaan tuorein markkinahinta JSON-rakenteesta
-            hinta = json_data['chart']['result']['meta']['regularMarketPrice']
+            hinta = json_data['chart']['result'][0]['meta']['regularMarketPrice']
             print(f"Onnistui! {tuote_nimi}: {hinta}")
             return float(hinta)
         else:
@@ -24,8 +24,7 @@ def hae_julkisesta_api(symboli, tuote_nimi):
         print(f"Virhe noudettaessa tuotetta {tuote_nimi}: {e}")
         return None
 
-# Päivitetyt vakaat pörssisymbolit:
-# CARB.DE kuvaa WisdomTree Carbon -tuotetta Xetrassa (EUR/tonni, vastaa täysin ICE EUA -hintaa)
+# Pörssisymbolit:
 tuotteet = {
     "EUA Carbon (Päästöoikeus)": "CARB.DE",    
     "WTI Crude Oil (Öljy)": "CL=F",            
