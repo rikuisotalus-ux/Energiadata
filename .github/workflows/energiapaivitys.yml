@@ -1,0 +1,39 @@
+name: Päivitä Energiamarkkinoiden Hinnat
+
+on:
+  schedule:
+    # Ajetaan maanantaista perjantaihin klo 16:00 UTC (klo 18:00/19:00 Suomen aikaa)
+    - cron: '0 16 * * 1-5'
+  workflow_dispatch: # Mahdollistaa skriptin manuaalisen käynnistyksen GitHubin sivuilta
+
+jobs:
+  run-scraper:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Antaa GitHub Actionsille oikeuden tallentaa tiedosto takaisin koodivarastoon
+
+    steps:
+    - name: Tarkista koodi repositoriosta
+      uses: actions/checkout@v4
+
+    - name: Asenna Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Asenna tarvittavat kirjastot
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests beautifulsoup4 pandas
+
+    - name: Suorita hintahakuskripti
+      run: python hae_energiadata.py
+
+    - name: Tallenna ja puske muutokset Excel-tiedostoon
+      run: |
+        git config --global user.name "GitHub Action Bot"
+        git config --global user.email "actions@github.com"
+        git add energiatietueet.csv
+        # Commitataan vain jos tiedostoon tuli oikeasti uutta dataa
+        git diff --quiet && git diff --staged --quiet || git commit -m "Automaattinen hintapäivitys: $(date +'%Y-%m-%d')"
+        git push
