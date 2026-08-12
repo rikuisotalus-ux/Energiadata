@@ -5,7 +5,7 @@ import os
 
 def hae_julkisesta_api(symboli, tuote_nimi):
     # Kovakoodattu URL-osoite, jossa vinoviiva on varmasti kiinteänä paikoillaan
-    url = "https://yahoo.com" + str(symboli)
+    url = "https://yahoo.com/" + str(symboli)
     
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
