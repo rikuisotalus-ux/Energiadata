@@ -1,31 +1,9 @@
-import requests
+import yfinance as yf
 import pandas as pd
 from datetime import datetime
 import os
 
-def hae_julkisesta_api(symboli, tuote_nimi):
-    # Kovakoodattu URL-osoite, jossa vinoviiva on varmasti kiinteänä paikoillaan
-    url = "https://yahoo.com/" + str(symboli)
-    
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    try:
-        print(f"Yritetään hakea osoitteesta: {url}") # Tulostetaan osoite lokiin varmistukseksi
-        response = requests.get(url, headers=headers, timeout=15)
-        if response.status_code == 200:
-            json_data = response.json()
-            hinta = json_data['chart']['result']['meta']['regularMarketPrice']
-            print(f"Onnistui! {tuote_nimi}: {hinta}")
-            return float(hinta)
-        else:
-            print(f"Rajapintavirhe tuotteelle {tuote_nimi}: Status {response.status_code}")
-            return None
-    except Exception as e:
-        print(f"Virhe noudettaessa tuotetta {tuote_nimi}: {e}")
-        return None
-
-# Pörssisymbolit
+# Määritetään pörssisymbolit
 tuotteet = {
     "EUA Carbon (Päästöoikeus)": "CARB.DE",    
     "WTI Crude Oil (Öljy)": "CL=F",            
@@ -37,25 +15,44 @@ tuotteet = {
 data_rivit = []
 nykyhetki = datetime.now().strftime("%Y-%m-%d %H:%M")
 
+# Haetaan hinnat yfinance-kirjaston kautta
 for nimi, symboli in tuotteet.items():
-    hinta = hae_julkisesta_api(symboli, nimi)
-    if hinta is not None:
-        data_rivit.append({
-            "Aikaleima": nykyhetki,
-            "Tuote": nimi,
-            "Hinta": hinta
-        })
+    try:
+        ticker = yf.Ticker(symboli)
+        # Haetaan tuorein regularMarketPrice
+        hinta = ticker.info.get('regularMarketPrice')
+        
+        # Jos info-rakenne on tyhjä, haetaan viimeisin hinta historiadatasta
+        if hinta is None:
+            historia = ticker.history(period="1d")
+            if not historia.empty:
+                hinta = historia['Close'].iloc[-1]
+                
+        if hinta is not None:
+            print(f"Onnistui! {nimi}: {hinta}")
+            data_rivit.append({
+                "Aikaleima": nykyhetki,
+                "Tuote": nimi,
+                "Hinta": float(hinta)
+            })
+        else:
+            print(f"Hintaa ei saatu tuotteelle {nimi}")
+            
+    except Exception as e:
+        print(f"Virhe tuotteen {nimi} kohdalla: {e}")
 
+# Jos kaikki haut epäonnistuisivat
 if not data_rivit:
     data_rivit.append({
         "Aikaleima": nykyhetki,
-        "Tuote": "VIRHE - Yhteyttä rajapintaan ei saatu",
+        "Tuote": "VIRHE - Dataa ei saatu yfinance-kirjastosta",
         "Hinta": 0.0
     })
 
 uusi_df = pd.DataFrame(data_rivit)
 tiedosto = "energiatietueet.csv"
 
+# Tallennetaan tai kasvatetaan historiadataa
 if os.path.exists(tiedosto):
     vanha_df = pd.read_csv(tiedosto)
     yhdistetty_df = pd.concat([vanha_df, uusi_df], ignore_index=True)
