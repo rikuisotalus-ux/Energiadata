@@ -4,17 +4,18 @@ from datetime import datetime
 import os
 
 def hae_julkisesta_api(symboli, tuote_nimi):
-    # KORJATTU: Vinoviiva on nyt varmasti paikoillaan muuttujan edessä
-    url = f"https://yahoo.com{symboli}"
+    # Kovakoodattu URL-osoite, jossa vinoviiva on varmasti kiinteänä paikoillaan
+    url = "https://yahoo.com" + str(symboli)
+    
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
     try:
+        print(f"Yritetään hakea osoitteesta: {url}") # Tulostetaan osoite lokiin varmistukseksi
         response = requests.get(url, headers=headers, timeout=15)
         if response.status_code == 200:
             json_data = response.json()
-            # Haetaan tuorein markkinahinta JSON-rakenteesta
-            hinta = json_data['chart']['result'][0]['meta']['regularMarketPrice']
+            hinta = json_data['chart']['result']['meta']['regularMarketPrice']
             print(f"Onnistui! {tuote_nimi}: {hinta}")
             return float(hinta)
         else:
@@ -24,7 +25,7 @@ def hae_julkisesta_api(symboli, tuote_nimi):
         print(f"Virhe noudettaessa tuotetta {tuote_nimi}: {e}")
         return None
 
-# Pörssisymbolit:
+# Pörssisymbolit
 tuotteet = {
     "EUA Carbon (Päästöoikeus)": "CARB.DE",    
     "WTI Crude Oil (Öljy)": "CL=F",            
@@ -45,7 +46,6 @@ for nimi, symboli in tuotteet.items():
             "Hinta": hinta
         })
 
-# Jos kaikki haut jostain syystä epäonnistuisivat
 if not data_rivit:
     data_rivit.append({
         "Aikaleima": nykyhetki,
@@ -56,7 +56,6 @@ if not data_rivit:
 uusi_df = pd.DataFrame(data_rivit)
 tiedosto = "energiatietueet.csv"
 
-# Tallennetaan tiedot ja kasvatetaan historiadataa
 if os.path.exists(tiedosto):
     vanha_df = pd.read_csv(tiedosto)
     yhdistetty_df = pd.concat([vanha_df, uusi_df], ignore_index=True)
