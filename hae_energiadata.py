@@ -16,22 +16,29 @@ def hae_hinta(url, tuote_nimi):
         
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        # Haetaan päänumero divistä, jonka id on 'market_price'
+        # Trading Economicsin nykyinen hintaelementti löytyy divistä, jonka id on 'market_price'
         hinta_elementti = soup.find("div", {"id": "market_price"})
         
         if not hinta_elementti:
+            # Varavaihtoehto: etsitään datataulukon solusta
             hinta_elementti = soup.find("div", {"class": "table-responsive"})
-        
-        # Puhdistetaan teksti ja poistetaan tyhjät välit
-        hinta_teksti = hinta_elementti.text.strip().split()[0]
-        # Korvataan pilkut ja muutetaan numeroksi
-        hinta = float(hinta_teksti.replace(',', ''))
-        return hinta
+            
+        if hinta_elementti:
+            # Puhdistetaan teksti: otetaan pelkkä ensimmäinen sana (itse hinta) ja poistetaan tyhjät välit
+            raaka_teksti = hinta_elementti.text.strip().split()[0]
+            # Poistetaan tuhansien erottimet (pilkut) ja muutetaan numeroksi
+            hinta = float(raaka_teksti.replace(',', ''))
+            print(f"Haettu {tuote_nimi}: {hinta}")
+            return hinta
+        else:
+            print(f"Hintaelementtiä ei löytynyt tuotteelle {tuote_nimi}")
+            return None
+            
     except Exception as e:
         print(f"Virhe tuotteen {tuote_nimi} kohdalla: {e}")
         return None
 
-# Tuotteet ja niiden Trading Economics URL-osoitteet
+# Tuotteet ja niiden viralliset URL-osoitteet
 tuotteet = {
     "EUA Carbon (Päästöoikeus)": "https://tradingeconomics.com",
     "WTI Crude Oil (Öljy)": "https://tradingeconomics.com",
@@ -52,19 +59,23 @@ for nimi, url in tuotteet.items():
             "Hinta": hinta
         })
 
-if data_rivit:
-    # KORJATTU: Muuttujan nimi on nyt yhtenäisesti uusi_df pienellä alkukirjaimella
-    uusi_df = pd.DataFrame(data_rivit)
-    tiedosto = "energiatietueet.csv"
-    
-    # Jos tiedosto on olemassa, lisätään uudet rivit vanhojen jatkoksi
-    if os.path.exists(tiedosto):
-        vanha_df = pd.read_csv(tiedosto)
-        yhdistetty_df = pd.concat([vanha_df, uusi_df], ignore_index=True)
-        yhdistetty_df.to_csv(tiedosto, index=False)
-    else:
-        uusi_df.to_csv(tiedosto, index=False)
-        
-    print("Markkinahinnat päivitetty onnistuneesti tiedostoon!")
+# Varmistetaan, että tiedosto luodaan aina, vaikka jokin haku epäonnistuisi
+if not data_rivit:
+    print("Kaikki haut epäonnistuivat, luodaan tyhjä rivi virheen estämiseksi.")
+    data_rivit.append({
+        "Aikaleima": nykyhetki,
+        "Tuote": "VIRHE - Dataa ei saatu",
+        "Hinta": 0.0
+    })
+
+uusi_df = pd.DataFrame(data_rivit)
+tiedosto = "energiatietueet.csv"
+
+if os.path.exists(tiedosto):
+    vanha_df = pd.read_csv(tiedosto)
+    yhdistetty_df = pd.concat([vanha_df, uusi_df], ignore_index=True)
+    yhdistetty_df.to_csv(tiedosto, index=False)
 else:
-    print("Yhtään hintaa ei pystytty noutamaan.")
+    uusi_df.to_csv(tiedosto, index=False)
+    
+print("Tiedosto 'energiatietueet.csv' käsitelty onnistuneesti!")
