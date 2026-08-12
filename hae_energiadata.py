@@ -16,29 +16,34 @@ def hae_hinta(url, tuote_nimi):
         
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        # Trading Economicsin nykyinen hintaelementti löytyy divistä, jonka id on 'market_price'
+        # Etsitään Trading Economicsin päänumeron sisältävä elementti
         hinta_elementti = soup.find("div", {"id": "market_price"})
         
         if not hinta_elementti:
-            # Varavaihtoehto: etsitään datataulukon solusta
             hinta_elementti = soup.find("div", {"class": "table-responsive"})
             
         if hinta_elementti:
-            # Puhdistetaan teksti: otetaan pelkkä ensimmäinen sana (itse hinta) ja poistetaan tyhjät välit
-            raaka_teksti = hinta_elementti.text.strip().split()[0]
-            # Poistetaan tuhansien erottimet (pilkut) ja muutetaan numeroksi
-            hinta = float(raaka_teksti.replace(',', ''))
-            print(f"Haettu {tuote_nimi}: {hinta}")
+            # Otetaan raaka teksti talteen (esim. "82.44" tai "82,44")
+            raaka_teksti = hinta_elementti.text.strip()
+            
+            # KORJAUS: Puhdistetaan rivinvaihdot ja tyhjät välit, otetaan vain ensimmäinen osa ennen välejä
+            pohja_teksti = raaka_teksti.split()[0]
+            
+            # Poistetaan mahdolliset tuhansien erottimet (pilkut) ja muutetaan numeroksi
+            puhdistettu_teksti = pohja_teksti.replace(',', '')
+            hinta = float(puhdistettu_teksti)
+            
+            print(f"Onnistui! {tuote_nimi}: {hinta}")
             return hinta
         else:
             print(f"Hintaelementtiä ei löytynyt tuotteelle {tuote_nimi}")
             return None
             
     except Exception as e:
-        print(f"Virhe tuotteen {tuote_nimi} kohdalla: {e}")
+        print(f"Virhe tuotteen {tuote_nimi} tekstinkäsittelyssä: {e}")
         return None
 
-# Tuotteet ja niiden viralliset URL-osoitteet
+# Tuotteet ja URL-osoitteet
 tuotteet = {
     "EUA Carbon (Päästöoikeus)": "https://tradingeconomics.com",
     "WTI Crude Oil (Öljy)": "https://tradingeconomics.com",
@@ -59,9 +64,9 @@ for nimi, url in tuotteet.items():
             "Hinta": hinta
         })
 
-# Varmistetaan, että tiedosto luodaan aina, vaikka jokin haku epäonnistuisi
+# Jos jostain syystä kaikki haut menisivät vikaan, varmistetaan tiedoston syntyminen
 if not data_rivit:
-    print("Kaikki haut epäonnistuivat, luodaan tyhjä rivi virheen estämiseksi.")
+    print("Haut epäonnistuivat kokonaan.")
     data_rivit.append({
         "Aikaleima": nykyhetki,
         "Tuote": "VIRHE - Dataa ei saatu",
@@ -78,4 +83,4 @@ if os.path.exists(tiedosto):
 else:
     uusi_df.to_csv(tiedosto, index=False)
     
-print("Tiedosto 'energiatietueet.csv' käsitelty onnistuneesti!")
+print("Tiedosto 'energiatietueet.csv' tallennettu onnistuneesti!")
