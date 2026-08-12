@@ -16,23 +16,22 @@ def hae_hinta(url, tuote_nimi):
         
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        # Trading Economics tallentaa päänumeron diviin, jonka id on 'market_price'
+        # Haetaan päänumero divistä, jonka id on 'market_price'
         hinta_elementti = soup.find("div", {"id": "market_price"})
         
         if not hinta_elementti:
-            # Varavaihtoehto, jos rakenne muuttuu: etsitään ensimmäinen suuri otsikkoluku
             hinta_elementti = soup.find("div", {"class": "table-responsive"})
         
-        # Puhdistetaan teksti pelkäksi numeroksi
+        # Puhdistetaan teksti ja poistetaan tyhjät välit
         hinta_teksti = hinta_elementti.text.strip().split()[0]
-        # Korvataan mahdolliset pilkut pisteillä ja muutetaan liukuluvuksi
+        # Korvataan pilkut ja muutetaan numeroksi
         hinta = float(hinta_teksti.replace(',', ''))
         return hinta
     except Exception as e:
         print(f"Virhe tuotteen {tuote_nimi} kohdalla: {e}")
         return None
 
-# Määritetään seurattavat tuotteet ja niiden viralliset Trading Economics URL-osoitteet
+# Tuotteet ja niiden Trading Economics URL-osoitteet
 tuotteet = {
     "EUA Carbon (Päästöoikeus)": "https://tradingeconomics.com",
     "WTI Crude Oil (Öljy)": "https://tradingeconomics.com",
@@ -54,10 +53,11 @@ for nimi, url in tuotteet.items():
         })
 
 if data_rivit:
-    Uusi_df = pd.DataFrame(data_rivit)
+    # KORJATTU: Muuttujan nimi on nyt yhtenäisesti uusi_df pienellä alkukirjaimella
+    uusi_df = pd.DataFrame(data_rivit)
     tiedosto = "energiatietueet.csv"
     
-    # Jos tiedosto on jo olemassa, lisätään uudet rivit vanhojen jatkoksi (historiadata säilyy)
+    # Jos tiedosto on olemassa, lisätään uudet rivit vanhojen jatkoksi
     if os.path.exists(tiedosto):
         vanha_df = pd.read_csv(tiedosto)
         yhdistetty_df = pd.concat([vanha_df, uusi_df], ignore_index=True)
