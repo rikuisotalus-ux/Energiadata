@@ -4,7 +4,6 @@ from datetime import datetime
 import os
 
 # Määritetään pörssisymbolit
-# KORJAUS: CO2.L antaa suoraan virallisen EUA:n tonnihinnan euroina (~82 €)
 tuotteet = {
     "EUA Carbon (Päästöoikeus)": "CO2.L",
     "WTI Crude Oil (Öljy)": "CL=F",            
@@ -22,7 +21,6 @@ for nimi, symboli in tuotteet.items():
         ticker = yf.Ticker(symboli)
         hinta = ticker.info.get('regularMarketPrice')
         
-        # Jos info-rakenne on tyhjä, haetaan viimeisin hinta historiadatasta
         if hinta is None:
             historia = ticker.history(period="1d")
             if not historia.empty:
@@ -41,17 +39,23 @@ for nimi, symboli in tuotteet.items():
     except Exception as e:
         print(f"Virhe tuotteen {nimi} kohdalla: {e}")
 
-uusi_df = pd.DataFrame(data_rivit)
-tiedosto = "energiatietueet.csv"
-
-# Tallennetaan tiedot ja kasvatetaan historiadataa
-if os.path.exists(tiedosto):
-    vanha_df = pd.read_csv(tiedosto)
-    # Siivotaan vanhat testailujen VIRHE-rivit pois tiedostosta
-    vanha_df = vanha_df[~vanha_df["Tuote"].str.contains("VIRHE", na=False)]
-    yhdistetty_df = pd.concat([vanha_df, uusi_df], ignore_index=True)
-    yhdistetty_df.to_csv(tiedosto, index=False)
+if data_rivit:
+    uusi_df = pd.DataFrame(data_rivit)
+    
+    # --- TIEODSTO 1: Historiadata (Kasvava tiedosto) ---
+    tiedosto_historia = "energiatietueet.csv"
+    if os.path.exists(tiedosto_historia):
+        vanha_df = pd.read_csv(tiedosto_historia)
+        vanha_df = vanha_df[~vanha_df["Tuote"].str.contains("VIRHE", na=False)]
+        yhdistetty_df = pd.concat([vanha_df, uusi_df], ignore_index=True)
+        yhdistetty_df.to_csv(tiedosto_historia, index=False)
+    else:
+        uusi_df.to_csv(tiedosto_historia, index=False)
+        
+    # --- TIEDOSTO 2: Vain viimeisin ajo (Ylikirjoittava tiedosto) ---
+    tiedosto_viimeisin = "energiatietueet_viimeisin.csv"
+    uusi_df.to_csv(tiedosto_viimeisin, index=False) # Tämä ylikirjoittaa tiedoston aina automaattisesti
+    
+    print("Molemmat tiedostot päivitetty onnistuneesti!")
 else:
-    uusi_df.to_csv(tiedosto, index=False)
-
-print("Tiedosto 'energiatietueet.csv' päivitetty onnistuneesti!")
+    print("Datan nouto epäonnistui, tiedostoja ei päivitetty.")
