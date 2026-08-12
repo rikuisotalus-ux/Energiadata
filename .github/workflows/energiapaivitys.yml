@@ -24,7 +24,7 @@ jobs:
     - name: Asenna tarvittavat kirjastot
       run: |
         python -m pip install --upgrade pip
-        pip install requests beautifulsoup4 pandas
+        pip install requests beautifulsoup4 pandas yfinance
 
     - name: Suorita hintahakuskripti
       run: python hae_energiadata.py
