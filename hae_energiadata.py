@@ -1,62 +1,44 @@
 import requests
-from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime
 import os
 
-def hae_hinta(url, tuote_nimi):
+def hae_julkisesta_api(symboli, tuote_nimi):
+    # Käytetään avointa talousdata-API-reittiä (Yahoo/CME rinnakkaisreitit ilman estoja)
+    url = f"https://yahoo.com{symboli}"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
     try:
         response = requests.get(url, headers=headers, timeout=15)
-        if response.status_code != 200:
-            print(f"Virhe haettaessa tuotetta {tuote_nimi}: Status {response.status_code}")
-            return None
-        
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        # Etsitään Trading Economicsin päänumeron sisältävä elementti
-        hinta_elementti = soup.find("div", {"id": "market_price"})
-        
-        if not hinta_elementti:
-            hinta_elementti = soup.find("div", {"class": "table-responsive"})
-            
-        if hinta_elementti:
-            # Otetaan raaka teksti talteen (esim. "82.44" tai "82,44")
-            raaka_teksti = hinta_elementti.text.strip()
-            
-            # KORJAUS: Puhdistetaan rivinvaihdot ja tyhjät välit, otetaan vain ensimmäinen osa ennen välejä
-            pohja_teksti = raaka_teksti.split()[0]
-            
-            # Poistetaan mahdolliset tuhansien erottimet (pilkut) ja muutetaan numeroksi
-            puhdistettu_teksti = pohja_teksti.replace(',', '')
-            hinta = float(puhdistettu_teksti)
-            
+        if response.status_code == 200:
+            json_data = response.json()
+            # Haetaan tuorein päätöshinta suoraan JSON-rakenteesta
+            hinta = json_data['chart']['result'][0]['meta']['regularMarketPrice']
             print(f"Onnistui! {tuote_nimi}: {hinta}")
-            return hinta
+            return float(hinta)
         else:
-            print(f"Hintaelementtiä ei löytynyt tuotteelle {tuote_nimi}")
+            print(f"Rajapintavirhe tuotteelle {tuote_nimi}: {response.status_code}")
             return None
-            
     except Exception as e:
-        print(f"Virhe tuotteen {tuote_nimi} tekstinkäsittelyssä: {e}")
+        print(f"Virhe noudettaessa tuotetta {tuote_nimi}: {e}")
         return None
 
-# Tuotteet ja URL-osoitteet
+# Määritetään tuotteet ja niiden viralliset ja vakaat markkinasymbolit (CME/ICE-kytkennät)
+# Käytetään continuous- ja aktiivisia sopimuksia, jotka vastaavat Trading Economicsin ja ICE:n tasoja
 tuotteet = {
-    "EUA Carbon (Päästöoikeus)": "https://tradingeconomics.com",
-    "WTI Crude Oil (Öljy)": "https://tradingeconomics.com",
-    "Brent Crude Oil (Öljy)": "https://tradingeconomics.com",
-    "API2 Coal (Hiili)": "https://tradingeconomics.com",
-    "Dutch TTF Gas (Kaasu)": "https://tradingeconomics.com"
+    "EUA Carbon (Päästöoikeus)": "MOIL.L",      # Euroopan hiilimarkkinan aktiivinen seuranta (EUR)
+    "WTI Crude Oil (Öljy)": "CL=F",            # NYMEX WTI Crude Oil
+    "Brent Crude Oil (Öljy)": "BZ=F",          # ICE Brent Crude Oil
+    "API2 Coal (Hiili)": "MTF=F",              # Rotterdam API2 Coal Futures
+    "Dutch TTF Gas (Kaasu)": "TTF=F"           # ICE Endex Dutch TTF Natural Gas
 }
 
 data_rivit = []
 nykyhetki = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-for nimi, url in tuotteet.items():
-    hinta = hae_hinta(url, nimi)
+for nimi, symboli in tuotteet.items():
+    hinta = hae_julkisesta_api(symboli, nimi)
     if hinta is not None:
         data_rivit.append({
             "Aikaleima": nykyhetki,
@@ -64,23 +46,23 @@ for nimi, url in tuotteet.items():
             "Hinta": hinta
         })
 
-# Jos jostain syystä kaikki haut menisivät vikaan, varmistetaan tiedoston syntyminen
+# Jos kaikki haut epäonnistuisivat (esim. ei verkkoyhteyttä)
 if not data_rivit:
-    print("Haut epäonnistuivat kokonaan.")
     data_rivit.append({
         "Aikaleima": nykyhetki,
-        "Tuote": "VIRHE - Dataa ei saatu",
+        "Tuote": "VIRHE - Yhteyttä rajapintaan ei saatu",
         "Hinta": 0.0
     })
 
 uusi_df = pd.DataFrame(data_rivit)
 tiedosto = "energiatietueet.csv"
 
+# Tallennetaan tai kasvatetaan historiadataa
 if os.path.exists(tiedosto):
     vanha_df = pd.read_csv(tiedosto)
     yhdistetty_df = pd.concat([vanha_df, uusi_df], ignore_index=True)
     yhdistetty_df.to_csv(tiedosto, index=False)
 else:
     uusi_df.to_csv(tiedosto, index=False)
-    
-print("Tiedosto 'energiatietueet.csv' tallennettu onnistuneesti!")
+
+print("Tiedosto 'energiatietueet.csv' päivitetty onnistuneesti!")
