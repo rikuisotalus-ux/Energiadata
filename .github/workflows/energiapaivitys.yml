@@ -3,7 +3,7 @@ name: Päivitä Energiamarkkinoiden Hinnat
 on:
   schedule:
     # Ajetaan maanantaista perjantaihin klo 16:00 UTC (klo 18:00/19:00 Suomen aikaa)
-    - cron: '0 16 * * 1-5'
+    - cron: '0 03 * * 2-6'
   workflow_dispatch: # Mahdollistaa skriptin manuaalisen käynnistyksen GitHubin sivuilta
 
 jobs:
